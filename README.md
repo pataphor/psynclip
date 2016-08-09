@@ -20,7 +20,7 @@ NB:
 - the script calls a utility called "xclip", install that first:
 sudo apt-get install xclip
 
--for some reason, if you kill the Xephyr, this also kills the terminal
+- for some reason, if you kill the Xephyr, this also kills the terminal
 psynclip was running in.
  
 - sure you can ssh -Y to some vpn, run "startlxde&" there, and run
