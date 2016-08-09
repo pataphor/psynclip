@@ -1,0 +1,73 @@
+#!/usr/bin/python
+
+import os
+import sys
+from Queue import Queue
+from threading import Thread
+from argparse import ArgumentParser
+from time import sleep
+from subprocess import Popen, PIPE
+
+def copyXclip(text, display):
+    new_env = os.environ.copy()
+    new_env["DISPLAY"] = display
+    p = Popen(['xclip', '-selection', 'c'],
+            stdin=PIPE, close_fds=True, env=new_env)
+    stdout, stderr = p.communicate(input=text.encode('utf-8'))
+
+def pasteXclip(display):
+    new_env = os.environ.copy()
+    new_env["DISPLAY"] = display
+    p = Popen(['xclip', '-selection', 'c', '-o'],
+            stdout=PIPE,stderr=PIPE,close_fds=True, env=new_env)
+    stdout, stderr = p.communicate()
+    return stdout.decode('utf-8')
+    
+def clipgen(display = ':0'):
+    old = ''
+    while 1:
+        sleep(.1)
+        s = pasteXclip(display)
+        if s and s != old:
+            yield s
+            old = s 
+
+def consume(q, s):
+    while not exitapp:
+        q.put(s.next())
+        
+def merge(iters):
+    q = Queue()
+    for it in iters:
+        t = Thread(target=consume, args=(q, it))
+        t.daemon = True
+        t.start()
+    while True:
+        if q.empty():
+            sleep(.1)
+        else:
+            yield q.get()
+            
+def run(displays) :
+    oldclip = dict((d,None) for d in displays)
+    for x in merge(clipgen(d) for d in displays):
+        for dd in displays:
+            if x <> oldclip[dd]:
+                #print x
+                copyXclip(x,dd)
+                oldclip[dd] = x
+
+def main():
+    parser = ArgumentParser(description = 'Synchronize clipboards across displays')
+    parser.add_argument('displays', metavar='N', type=str, nargs='+',
+                    help='include this display; a valid display looks like :0 or :1')
+    args = parser.parse_args()
+    run(args.displays)
+    
+exitapp = False
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        exitapp = True
+        sys.exit(0)
